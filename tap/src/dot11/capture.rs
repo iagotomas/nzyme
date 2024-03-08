@@ -4,8 +4,7 @@ use caps::{CapSet, Capability};
 use log::{error, info, debug};
 
 use crate::{
-    messagebus::bus::Bus,
-    metrics::Metrics, dot11::frames::Dot11RawFrame,
+    configuration::WifiInterface, dot11::frames::Dot11RawFrame, messagebus::bus::Bus, metrics::Metrics
 };
 use crate::dot11::nl::InterfaceState::{Down, Up};
 use crate::dot11::nl::Nl;
@@ -17,7 +16,7 @@ pub struct Capture {
 
 impl Capture {
 
-    pub fn run(&mut self, device_name: &str) {
+    pub fn run(&mut self, device_name: &str, configuration: &WifiInterface) {
         info!("Starting WiFi capture on [{}]", device_name);
 
         // Check if `net_admin` permission is set on this program.
@@ -43,30 +42,32 @@ impl Capture {
             }
         };
 
-        info!("Temporarily disabling interface [{}] ...", device_name);
-        match nl.change_80211_interface_state(&device_name.to_string(), Down) {
-            Ok(_) => info!("Device [{}] is now down.", device_name),
-            Err(e) => {
-                error!("Could not disable device [{}]: {}", device_name, e);
-                return;
+        if !configuration.disable_monitor_management.unwrap_or(false) {
+            info!("Temporarily disabling interface [{}] ...", device_name);
+            match nl.change_80211_interface_state(&device_name.to_string(), Down) {
+                Ok(_) => info!("Device [{}] is now down.", device_name),
+                Err(e) => {
+                    error!("Could not disable device [{}]: {}", device_name, e);
+                    return;
+                }
             }
-        }
 
-        info!("Enabling monitor mode on interface [{}] ...", device_name);
-        match nl.enable_monitor_mode(&device_name.to_string()) {
-            Ok(_) => info!("Device [{}] is now in monitor mode.", device_name),
-            Err(e) => {
-                error!("Could not set device [{}] to monitor mode: {}", device_name, e);
-                return;
+            info!("Enabling monitor mode on interface [{}] ...", device_name);
+            match nl.enable_monitor_mode(&device_name.to_string()) {
+                Ok(_) => info!("Device [{}] is now in monitor mode.", device_name),
+                Err(e) => {
+                    error!("Could not set device [{}] to monitor mode: {}", device_name, e);
+                    return;
+                }
             }
-        }
 
-        info!("Enabling interface [{}] ...", device_name);
-        match nl.change_80211_interface_state(&device_name.to_string(), Up) {
-            Ok(_) => info!("Device [{}] is now up.", device_name),
-            Err(e) => {
-                error!("Could not enable device [{}]: {}", device_name, e);
-                return;
+            info!("Enabling interface [{}] ...", device_name);
+            match nl.change_80211_interface_state(&device_name.to_string(), Up) {
+                Ok(_) => info!("Device [{}] is now up.", device_name),
+                Err(e) => {
+                    error!("Could not enable device [{}]: {}", device_name, e);
+                    return;
+                }
             }
         }
 

@@ -30,6 +30,7 @@ pub struct EthernetInterface {
 pub struct WifiInterface {
     pub active: bool,
     pub disable_hopper: Option<bool>,
+    pub disable_monitor_management: Option<bool>,
     pub channels_2g: Vec<u16>,
     pub channels_5g: Vec<u16>,
     pub channels_6g: Vec<u16>,

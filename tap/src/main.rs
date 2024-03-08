@@ -25,7 +25,7 @@ use toml::map::Map;
 use messagebus::bus::Bus;
 use system_state::SystemState;
 
-use crate::dot11::{channel_hopper::ChannelHopper};
+use crate::{configuration::WifiInterface, dot11::channel_hopper::ChannelHopper};
 use crate::helpers::network::Channel;
 
 #[derive(Parser,Debug)]
@@ -207,14 +207,13 @@ fn main() {
                     metrics: capture_metrics.clone(),
                     bus: capture_bus.clone()
                 };
-
                 match capture_metrics.lock() {
                     Ok(mut metrics) => metrics.register_new_capture(&interface_name, metrics::CaptureType::WiFi),
                     Err(e) => error!("Could not acquire mutex of metrics: {}", e)
                 }
 
                 loop {
-                    dot11_capture.run(&interface_name);
+                    dot11_capture.run(&interface_name, &interface_config);
 
                     error!("WiFi capture [{}] disconnected. Retrying in 5 seconds.", &interface_name);
                     match capture_metrics.lock() {
