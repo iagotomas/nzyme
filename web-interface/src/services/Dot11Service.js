@@ -17,114 +17,128 @@ class Dot11Service {
     })
   }
 
-  getBSSIDAdvertisementHistogram(bssid, minutes, taps, setHistogram) {
+  getBSSIDAdvertisementHistogram(bssid, timeRange, taps, setHistogram) {
     const tapsList = Array.isArray(taps) ? taps.join(",") : "*";
 
     RESTClient.get("/dot11/networks/bssids/show/" + bssid + "/advertisements/histogram",
-        { minutes: minutes, taps: tapsList }, function (response) {
+        { time_range: timeRange, taps: tapsList }, function (response) {
           setHistogram(response.data);
         })
   }
 
-  getBSSIDActiveChannelHistogram(bssid, minutes, taps, setHistogram) {
+  getBSSIDActiveChannelHistogram(bssid, timeRange, taps, setHistogram) {
     const tapsList = Array.isArray(taps) ? taps.join(",") : "*";
 
     RESTClient.get("/dot11/networks/bssids/show/" + bssid + "/frequencies/histogram",
-        { minutes: minutes, taps: tapsList }, function (response) {
+        { time_range: timeRange, taps: tapsList }, function (response) {
           setHistogram(response.data);
         })
   }
 
-  getBSSIDSignalWaterfall(bssid, minutes, taps, setWaterfall) {
+  getBSSIDSignalWaterfall(bssid, timeRange, taps, setWaterfall) {
     const tapsList = Array.isArray(taps) ? taps.join(",") : "*";
 
     RESTClient.get("/dot11/networks/bssids/show/" + bssid + "/signal/waterfall",
-        { minutes: minutes, taps: tapsList }, function (response) {
+        { time_range: timeRange, taps: tapsList }, function (response) {
           setWaterfall(response.data);
         })
   }
 
-  findAllBSSIDs(minutes, taps, setBSSIDs) {
+  findAllBSSIDs(timeRange, taps, setBSSIDs) {
     const tapsList = Array.isArray(taps) ? taps.join(",") : "*";
 
-    RESTClient.get("/dot11/networks/bssids", { minutes: minutes, taps: tapsList },
+    RESTClient.get("/dot11/networks/bssids", { time_range: timeRange, taps: tapsList },
         function (response) {
           setBSSIDs(response.data.bssids)
     })
   }
 
-  findSSIDsOfBSSID(bssid, minutes, taps, successCallback) {
+  findSSIDsOfBSSID(bssid, timeRange, taps, successCallback) {
     const tapsList = Array.isArray(taps) ? taps.join(",") : "*";
 
-    RESTClient.get("/dot11/networks/bssids/show/" + bssid + "/ssids", { minutes: minutes, taps: tapsList },
+    RESTClient.get("/dot11/networks/bssids/show/" + bssid + "/ssids", { time_range: timeRange, taps: tapsList },
         function (response) {
           successCallback(response.data.ssids);
     })
   }
 
-  getBSSIDAndSSIDHistogram(minutes, taps, setBSSIDAndSSIDHistogram) {
+  getBSSIDAndSSIDHistogram(timeRange, taps, setBSSIDAndSSIDHistogram) {
     const tapsList = Array.isArray(taps) ? taps.join(",") : "*";
 
-    RESTClient.get("/dot11/networks/bssids/histogram", { minutes: minutes, taps: tapsList },
+    RESTClient.get("/dot11/networks/bssids/histogram", { time_range: timeRange, taps: tapsList },
         function (response) {
           setBSSIDAndSSIDHistogram(response.data)
     })
   }
 
-  findSSIDOfBSSID(bssid, ssid, minutes, taps, setSSID) {
+  findSSIDOfBSSID(bssid, ssid, timeRange, taps, setSSID) {
     const tapsList = Array.isArray(taps) ? taps.join(",") : "*";
 
     RESTClient.get("/dot11/networks/bssids/show/" + bssid + "/ssids/show/" + ssid,
-        { minutes: minutes, taps: tapsList }, function (response) {
+        { time_range: timeRange, taps: tapsList }, function (response) {
           setSSID(response.data);
     })
   }
 
-  getSSIDOfBSSIDAdvertisementHistogram(bssid, ssid, minutes, taps, setHistogram) {
+  getSSIDOfBSSIDAdvertisementHistogram(bssid, ssid, timeRange, taps, setHistogram) {
     const tapsList = Array.isArray(taps) ? taps.join(",") : "*";
 
     RESTClient.get("/dot11/networks/bssids/show/" + bssid + "/ssids/show/" + ssid + "/advertisements/histogram",
-        { minutes: minutes, taps: tapsList }, function (response) {
+        { time_range: timeRange, taps: tapsList }, function (response) {
           setHistogram(response.data);
     })
   }
 
-  getSSIDOfBSSIDActiveChannelHistogram(bssid, ssid, minutes, taps, setHistogram) {
+  getSSIDOfBSSIDActiveChannelHistogram(bssid, ssid, timeRange, taps, setHistogram) {
     const tapsList = Array.isArray(taps) ? taps.join(",") : "*";
 
     RESTClient.get("/dot11/networks/bssids/show/" + bssid + "/ssids/show/" + ssid + "/frequencies/histogram",
-        { minutes: minutes, taps: tapsList }, function (response) {
+        { time_range: timeRange, taps: tapsList }, function (response) {
           setHistogram(response.data);
     })
   }
 
-  getSSIDOfBSSIDSignalWaterfall(bssid, ssid, frequency, minutes, taps, setWaterfall) {
+  getSSIDOfBSSIDSignalWaterfall(bssid, ssid, frequency, timeRange, taps, setWaterfall) {
     const tapsList = Array.isArray(taps) ? taps.join(",") : "*";
 
     RESTClient.get("/dot11/networks/bssids/show/" + bssid + "/ssids/show/" + ssid + "/frequencies/show/" + frequency + "/signal/waterfall",
-        { minutes: minutes, taps: tapsList }, function (response) {
+        { time_range: timeRange, taps: tapsList }, function (response) {
           setWaterfall(response.data);
     })
   }
 
-  findAllClients(minutes, taps, setConnectedClients, setDisconnectedClients, connectedLimit, connectedOffset, disconnectedLimit, disconnectedOffset) {
+  findConnectedClients(timeRange, taps, setClients, limit, offset) {
     const tapsList = Array.isArray(taps) ? taps.join(",") : "*";
 
-    RESTClient.get("/dot11/clients",
-        { minutes: minutes, taps: tapsList, connectedLimit: connectedLimit, connectedOffset: connectedOffset,
-          disconnectedLimit: disconnectedLimit, disconnectedOffset: disconnectedOffset },
+    RESTClient.get("/dot11/clients/connected",
+        { time_range: timeRange, taps: tapsList, limit: limit, offset: offset },
         function (response) {
-          setConnectedClients(response.data.connected);
-          setDisconnectedClients(response.data.disconnected);
-    })
+          setClients(response.data);
+        })
   }
 
-  getClientHistograms(taps, setHistograms) {
+  findDisconnectedClients(timeRange, taps, setClients, limit, offset) {
     const tapsList = Array.isArray(taps) ? taps.join(",") : "*";
 
-    RESTClient.get("/dot11/clients/histograms", { taps: tapsList }, function (response) {
-          setHistograms(response.data);
-    })
+    RESTClient.get("/dot11/clients/disconnected",
+        { time_range: timeRange, taps: tapsList, limit: limit, offset: offset },
+        function (response) {
+          setClients(response.data);
+        })
+  }
+
+  getConnectedClientsHistogram(timeRange, taps, setHistogram) {
+    const tapsList = Array.isArray(taps) ? taps.join(",") : "*";
+
+    RESTClient.get("/dot11/clients/connected/histogram", { time_range: timeRange, taps: tapsList },
+        function (response) { setHistogram(response.data); })
+  }
+
+  getDisconnectedClientsHistogram(timeRange, taps, setHistogram) {
+    const tapsList = Array.isArray(taps) ? taps.join(",") : "*";
+
+    RESTClient.get("/dot11/clients/disconnected/histogram", { time_range: timeRange, taps: tapsList },
+        function (response) { setHistogram(response.data); })
   }
 
   findMergedConnectedOrDisconnectedClient(clientMac, taps, setClient) {
@@ -279,47 +293,47 @@ class Dot11Service {
         successCallback);
   }
 
-  getDiscoHistogram(discoType, minutes, taps, bssids, monitoredNetworkId, setHistogram) {
+  getDiscoHistogram(discoType, timeRange, taps, bssids, monitoredNetworkId, setHistogram) {
     const tapsList = Array.isArray(taps) ? taps.join(",") : "*";
     const bssidList = bssids ? bssids.join(",") : null
     const monitoredNetworkIdParam = monitoredNetworkId ? monitoredNetworkId : null;
 
     RESTClient.get("/dot11/disco/histogram",
-        { disco_type: discoType, minutes: minutes, taps: tapsList, bssids: bssidList, monitored_network_id: monitoredNetworkIdParam },
+        { disco_type: discoType, time_range: timeRange, taps: tapsList, bssids: bssidList, monitored_network_id: monitoredNetworkIdParam },
         function (response) {
           setHistogram(response.data)
     })
   }
 
-  getDiscoTopSenders(minutes, taps, monitoredNetworkId, limit, offset, setTopSenders) {
+  getDiscoTopSenders(timeRange, taps, monitoredNetworkId, limit, offset, setTopSenders) {
     const tapsList = Array.isArray(taps) ? taps.join(",") : "*";
     const monitoredNetworkIdParam = monitoredNetworkId ? monitoredNetworkId : null;
 
     RESTClient.get("/dot11/disco/lists/senders",
-        { minutes: minutes, taps: tapsList, monitored_network_id: monitoredNetworkIdParam, limit: limit, offset: offset},
+        { time_range: timeRange, taps: tapsList, monitored_network_id: monitoredNetworkIdParam, limit: limit, offset: offset},
         function (response) {
           setTopSenders(response.data)
     })
   }
 
-  getDiscoTopReceivers(minutes, taps, monitoredNetworkId, limit, offset, setTopReceivers) {
+  getDiscoTopReceivers(timeRange, taps, monitoredNetworkId, limit, offset, setTopReceivers) {
     const tapsList = Array.isArray(taps) ? taps.join(",") : "*";
     const monitoredNetworkIdParam = monitoredNetworkId ? monitoredNetworkId : null;
 
     RESTClient.get("/dot11/disco/lists/receivers",
-        { minutes: minutes, taps: tapsList, monitored_network_id: monitoredNetworkIdParam, limit: limit, offset: offset},
+        { time_range: timeRange, taps: tapsList, monitored_network_id: monitoredNetworkIdParam, limit: limit, offset: offset},
         function (response) {
           setTopReceivers(response.data)
         })
   }
 
-  getDiscoTopPairs(minutes, taps, monitoredNetworkId, bssids, limit, offset, setTopPairs) {
+  getDiscoTopPairs(timeRange, taps, monitoredNetworkId, bssids, limit, offset, setTopPairs) {
     const tapsList = Array.isArray(taps) ? taps.join(",") : "*";
     const monitoredNetworkIdParam = monitoredNetworkId ? monitoredNetworkId : null;
     const bssidsParam = bssids ? bssids.join(",") : null;
 
     RESTClient.get("/dot11/disco/lists/pairs",
-        { minutes: minutes, taps: tapsList, monitored_network_id: monitoredNetworkIdParam, bssids: bssidsParam, limit: limit, offset: offset},
+        { time_range: timeRange, taps: tapsList, monitored_network_id: monitoredNetworkIdParam, bssids: bssidsParam, limit: limit, offset: offset},
         function (response) {
           setTopPairs(response.data)
         })
