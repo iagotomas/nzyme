@@ -1,4 +1,4 @@
-use std::{sync::{Arc, Mutex}};
+use std::sync::{Arc, Mutex};
 
 use caps::{CapSet, Capability};
 use log::{error, info, debug};
@@ -16,7 +16,7 @@ pub struct Capture {
 
 impl Capture {
 
-    pub fn run(&mut self, device_name: &str, configuration: &WifiInterface) {
+    pub fn run(&mut self, device_name: &str, configuration: WifiInterface) {
         info!("Starting WiFi capture on [{}]", device_name);
 
         // Check if `net_admin` permission is set on this program.

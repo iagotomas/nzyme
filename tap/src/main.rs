@@ -25,7 +25,7 @@ use toml::map::Map;
 use messagebus::bus::Bus;
 use system_state::SystemState;
 
-use crate::{configuration::WifiInterface, dot11::channel_hopper::ChannelHopper};
+use crate::dot11::channel_hopper::ChannelHopper;
 use crate::helpers::network::Channel;
 
 #[derive(Parser,Debug)]
@@ -213,7 +213,7 @@ fn main() {
                 }
 
                 loop {
-                    dot11_capture.run(&interface_name, &interface_config);
+                    dot11_capture.run(&interface_name, interface_config.clone());
 
                     error!("WiFi capture [{}] disconnected. Retrying in 5 seconds.", &interface_name);
                     match capture_metrics.lock() {
