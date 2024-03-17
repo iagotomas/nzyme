@@ -3,7 +3,8 @@ use std::fs::read_to_string;
 
 use anyhow::{Result, bail};
 use reqwest::Url;
-use serde::Deserialize;
+use serde::{Deserialize, Deserializer};
+use serde::de::Error;
 
 #[derive(Debug, Clone, Deserialize)]
 pub struct Configuration {
@@ -76,11 +77,11 @@ pub fn load(path: String) -> Result<Configuration, anyhow::Error> {
         bail!("Configuration variable `wifi_brokers` must be set to a value greater than 0.");
     }
 
-    if doc.performance.wifi_broker_buffer_capacity <= 0 {
+    if doc.performance.wifi_broker_buffer_capacity == 0 {
         bail!("Configuration variable `wifi_pkt_buffer_capacity` must be set to a value greater than 0.");
     }
 
-    if doc.performance.ethernet_broker_buffer_capacity <= 0 {
+    if doc.performance.ethernet_broker_buffer_capacity == 0 {
         bail!("Configuration variable `ethernet_pkt_buffer_capacity` must be set to a value greater than 0.");
     }
 

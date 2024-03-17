@@ -43,10 +43,7 @@ struct Arguments {
 
 fn main() {
     let args = Arguments::parse();
-    let log_level = match args.log_level {
-        Some(log_level) => log_level,
-        None => "info".to_string()
-    };
+    let log_level = args.log_level.unwrap_or_else(|| "info".to_string());
 
     if args.generate_channels {
         // we only initialize logging for the channel toml generation if it is not info, so we don't pollute the output
@@ -123,7 +120,7 @@ fn main() {
             exit(exit_code::EX_CONFIG);
         }
     };
-    
+
     let system_state = Arc::new(
         SystemState::new(configuration.misc.training_period_minutes as usize).initialize()
     );
@@ -180,7 +177,7 @@ fn main() {
                         Ok(mut metrics) => metrics.mark_capture_as_failed(&interface_name),
                         Err(e) => error!("Could not acquire mutex of metrics: {}", e)
                     }
-                    thread::sleep(time::Duration::from_secs(5));
+                    sleep(Duration::from_secs(5));
                 }
             });
         }
