@@ -15,36 +15,42 @@
  * <http://www.mongodb.com/licensing/server-side-public-license>.
  */
 
-package app.nzyme.core.taps.metrics;
+package app.nzyme.core.taps.db.metrics;
 
 import com.google.auto.value.AutoValue;
-
-import java.util.List;
-import java.util.UUID;
+import org.joda.time.DateTime;
 
 @AutoValue
-public abstract class TapMetrics {
+public abstract class TapMetricsAggregation {
 
-    public abstract UUID tapUUID();
-    public abstract List<TapMetricsGauge> gauges();
+    public abstract DateTime bucket();
+    public abstract Double average();
+    public abstract Double maximum();
+    public abstract Double minimum();
 
-    public static TapMetrics create(UUID tapUUID, List<TapMetricsGauge> gauges) {
+    public static TapMetricsAggregation create(DateTime bucket, Double average, Double maximum, Double minimum) {
         return builder()
-                .tapUUID(tapUUID)
-                .gauges(gauges)
+                .bucket(bucket)
+                .average(average)
+                .maximum(maximum)
+                .minimum(minimum)
                 .build();
     }
 
     public static Builder builder() {
-        return new AutoValue_TapMetrics.Builder();
+        return new AutoValue_TapMetricsAggregation.Builder();
     }
 
     @AutoValue.Builder
     public abstract static class Builder {
-        public abstract Builder tapUUID(UUID tapUUID);
+        public abstract Builder bucket(DateTime bucket);
 
-        public abstract Builder gauges(List<TapMetricsGauge> gauges);
+        public abstract Builder average(Double average);
 
-        public abstract TapMetrics build();
+        public abstract Builder maximum(Double maximum);
+
+        public abstract Builder minimum(Double minimum);
+
+        public abstract TapMetricsAggregation build();
     }
 }

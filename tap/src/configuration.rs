@@ -3,8 +3,7 @@ use std::fs::read_to_string;
 
 use anyhow::{Result, bail};
 use reqwest::Url;
-use serde::{Deserialize, Deserializer};
-use serde::de::Error;
+use serde::Deserialize;
 
 #[derive(Debug, Clone, Deserialize)]
 pub struct Configuration {
@@ -12,6 +11,7 @@ pub struct Configuration {
     pub wifi_interfaces: Option<HashMap<String, WifiInterface>>,
     pub ethernet_interfaces: Option<HashMap<String, EthernetInterface>>,
     pub performance: Performance,
+    pub protocols: Protocols,
     pub misc: Misc
 }
 
@@ -48,7 +48,18 @@ pub struct Performance {
 #[derive(Debug, Clone, Deserialize)]
 pub struct Misc {
     pub training_period_minutes: i32
+}
 
+#[derive(Debug, Clone, Deserialize)]
+pub struct Protocols {
+    pub tcp: ProtocolsTcp
+}
+
+#[derive(Debug, Clone, Deserialize)]
+pub struct ProtocolsTcp {
+    pub pipeline_size: i32,
+    pub reassembly_buffer_size: i32,
+    pub session_timeout_seconds: i32
 }
 
 pub fn load(path: String) -> Result<Configuration, anyhow::Error> {
@@ -83,6 +94,18 @@ pub fn load(path: String) -> Result<Configuration, anyhow::Error> {
 
     if doc.performance.ethernet_broker_buffer_capacity == 0 {
         bail!("Configuration variable `ethernet_pkt_buffer_capacity` must be set to a value greater than 0.");
+    }
+
+    if doc.protocols.tcp.pipeline_size <= 0 {
+        bail!("Configuration variable `protocols.tcp.pipeline_size` must be set to a value greater than 0.");
+    }
+
+    if doc.protocols.tcp.session_timeout_seconds <= 0 {
+        bail!("Configuration variable `protocols.tcp.session_timeout_seconds` must be set to a value greater than 0.");
+    }
+
+    if doc.protocols.tcp.reassembly_buffer_size <= 0 {
+        bail!("Configuration variable `protocols.tcp.reassembly_buffer_size` must be set to a value greater than 0.");
     }
 
     // Validate WiFi interfaces configuration

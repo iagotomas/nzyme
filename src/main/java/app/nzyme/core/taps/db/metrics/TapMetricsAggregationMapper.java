@@ -17,7 +17,6 @@
 
 package app.nzyme.core.taps.db.metrics;
 
-import app.nzyme.core.taps.metrics.TapMetricsGaugeAggregation;
 import org.jdbi.v3.core.mapper.RowMapper;
 import org.jdbi.v3.core.statement.StatementContext;
 import org.joda.time.DateTime;
@@ -25,11 +24,11 @@ import org.joda.time.DateTime;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 
-public class TapMetricsGaugeAggregationMapper implements RowMapper<TapMetricsGaugeAggregation> {
+public class TapMetricsAggregationMapper implements RowMapper<TapMetricsAggregation> {
 
     @Override
-    public TapMetricsGaugeAggregation map(ResultSet rs, StatementContext ctx) throws SQLException {
-        return TapMetricsGaugeAggregation.create(
+    public TapMetricsAggregation map(ResultSet rs, StatementContext ctx) throws SQLException {
+        return TapMetricsAggregation.create(
                 new DateTime(rs.getTimestamp("bucket")),
                 rs.getDouble("average"),
                 rs.getDouble("maximum"),

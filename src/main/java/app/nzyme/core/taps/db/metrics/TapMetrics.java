@@ -15,35 +15,29 @@
  * <http://www.mongodb.com/licensing/server-side-public-license>.
  */
 
-package app.nzyme.core.rest.responses.taps.metrics;
+package app.nzyme.core.taps.db.metrics;
 
-import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.auto.value.AutoValue;
-import org.joda.time.DateTime;
 
-import java.util.Map;
+import java.util.List;
+import java.util.UUID;
 
 @AutoValue
-public abstract class TapMetricsGaugeHistogramResponse {
+public abstract class TapMetrics {
 
-    @JsonProperty("values")
-    public abstract Map<DateTime, TapMetricsGaugeHistogramValueResponse> values();
-
-    public static TapMetricsGaugeHistogramResponse create(Map<DateTime, TapMetricsGaugeHistogramValueResponse> values) {
-        return builder()
-                .values(values)
-                .build();
-    }
+    public abstract UUID tapUUID();
+    public abstract List<TapMetricsGauge> gauges();
 
     public static Builder builder() {
-        return new AutoValue_TapMetricsGaugeHistogramResponse.Builder();
+        return new AutoValue_TapMetrics.Builder();
     }
 
     @AutoValue.Builder
     public abstract static class Builder {
-        public abstract Builder values(Map<DateTime, TapMetricsGaugeHistogramValueResponse> values);
+        public abstract Builder tapUUID(UUID tapUUID);
 
-        public abstract TapMetricsGaugeHistogramResponse build();
+        public abstract Builder gauges(List<TapMetricsGauge> gauges);
+
+        public abstract TapMetrics build();
     }
-
 }

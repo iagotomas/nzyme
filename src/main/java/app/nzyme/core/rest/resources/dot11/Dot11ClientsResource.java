@@ -67,34 +67,6 @@ public class Dot11ClientsResource extends TapDataHandlingResource {
                     authenticatedUser.getTenantId()
             );
 
-            List<ConnectedBSSID> bssidHistory = Lists.newArrayList();
-            for (String bssid : nzyme.getDot11()
-                    .findBSSIDsClientWasConnectedTo(client.clientMac(), tapUuids)) {
-                Optional<MacAddressContextEntry> bssidContext = nzyme.getContextService().findMacAddressContext(
-                        bssid,
-                        authenticatedUser.getOrganizationId(),
-                        authenticatedUser.getTenantId()
-                );
-
-                // Find all SSIDs this BSSID advertised.
-                List<String> advertisedSSIDs = nzyme.getDot11().findSSIDsAdvertisedByBSSID(
-                        bssid, tapUuids);
-
-                bssidHistory.add(ConnectedBSSID.create(
-                        Dot11MacAddressResponse.create(
-                                bssid,
-                                nzyme.getOUIManager().lookupMac(bssid),
-                                bssidContext.map(macAddressContextEntry ->
-                                                Dot11MacAddressContextResponse.create(
-                                                        macAddressContextEntry.name(),
-                                                        macAddressContextEntry.description()
-                                                ))
-                                        .orElse(null)
-                        ),
-                        advertisedSSIDs
-                ));
-            }
-
             List<String> probeRequests = nzyme.getDot11()
                     .findProbeRequestsOfClient(client.clientMac(), tapUuids);
 
@@ -126,8 +98,7 @@ public class Dot11ClientsResource extends TapDataHandlingResource {
                                             ))
                                     .orElse(null)
                     ),
-                    probeRequests,
-                    bssidHistory
+                    probeRequests
             ));
         }
 
@@ -161,35 +132,6 @@ public class Dot11ClientsResource extends TapDataHandlingResource {
                     authenticatedUser.getTenantId()
             );
 
-            List<ConnectedBSSID> bssidHistory = Lists.newArrayList();
-
-            for (String bssid : nzyme.getDot11()
-                    .findBSSIDsClientWasConnectedTo(client.clientMac(), tapUuids)) {
-                Optional<MacAddressContextEntry> bssidContext = nzyme.getContextService().findMacAddressContext(
-                        bssid,
-                        authenticatedUser.getOrganizationId(),
-                        authenticatedUser.getTenantId()
-                );
-
-                // Find all SSIDs this BSSID advertised.
-                List<String> advertisedSSIDs = nzyme.getDot11().findSSIDsAdvertisedByBSSID(
-                        bssid, tapUuids);
-
-                bssidHistory.add(ConnectedBSSID.create(
-                        Dot11MacAddressResponse.create(
-                                bssid,
-                                nzyme.getOUIManager().lookupMac(bssid),
-                                bssidContext.map(macAddressContextEntry ->
-                                                Dot11MacAddressContextResponse.create(
-                                                        macAddressContextEntry.name(),
-                                                        macAddressContextEntry.description()
-                                                ))
-                                        .orElse(null)
-                        ),
-                        advertisedSSIDs
-                ));
-            }
-
             disconnectedClients.add(DisconnectedClientDetailsResponse.create(
                     Dot11MacAddressResponse.create(
                             client.clientMac(),
@@ -202,8 +144,7 @@ public class Dot11ClientsResource extends TapDataHandlingResource {
                                     .orElse(null)
                     ),
                     client.lastSeen(),
-                    client.probeRequests(),
-                    bssidHistory
+                    client.probeRequests()
             ));
         }
 
@@ -276,14 +217,14 @@ public class Dot11ClientsResource extends TapDataHandlingResource {
         // Recent signal strength by tap.
         List<TapBasedSignalStrengthResponse> connectedSignalStrengthsByTap = Lists.newArrayList();
         for (TapBasedSignalStrengthResult ssr : nzyme.getDot11()
-                .findBssidClientSignalStrengthPerTap(c.mac(), 15, tapUuids)) {
+                .findBssidClientSignalStrengthPerTap(c.mac(), TimeRangeFactory.fifteenMinutes(), tapUuids)) {
             connectedSignalStrengthsByTap.add(TapBasedSignalStrengthResponse.create(
                     ssr.tapUuid(), ssr.tapName(), ssr.signalStrength()
             ));
         }
         List<TapBasedSignalStrengthResponse> disconnectedSignalStrengthsByTap = Lists.newArrayList();
         for (TapBasedSignalStrengthResult ssr : nzyme.getDot11()
-                .findDisconnectedClientSignalStrengthPerTap(c.mac(), 15, tapUuids)) {
+                .findDisconnectedClientSignalStrengthPerTap(c.mac(),  TimeRangeFactory.fifteenMinutes(), tapUuids)) {
             disconnectedSignalStrengthsByTap.add(TapBasedSignalStrengthResponse.create(
                     ssr.tapUuid(), ssr.tapName(), ssr.signalStrength()
             ));

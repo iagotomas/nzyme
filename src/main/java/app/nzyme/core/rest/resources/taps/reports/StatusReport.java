@@ -31,27 +31,30 @@ public abstract class StatusReport {
     public abstract String version();
     public abstract DateTime timestamp();
     public abstract TotalWithAverage processedBytes();
-    public abstract BusReport bus();
+    public abstract List<BusReport> buses();
     public abstract SystemMetrics systemMetrics();
     public abstract List<CapturesReport> captures();
     public abstract Map<String, Long> gaugesLong();
+    public abstract Map<String, TimersReport> timers();
 
     @JsonCreator
     public static StatusReport create(@JsonProperty("version") String version,
                                       @JsonProperty("timestamp") DateTime timestamp,
                                       @JsonProperty("processed_bytes") TotalWithAverage processedBytes,
-                                      @JsonProperty("bus") BusReport bus,
+                                      @JsonProperty("buses") List<BusReport> buses,
                                       @JsonProperty("system_metrics") SystemMetrics systemMetrics,
                                       @JsonProperty("captures") List<CapturesReport> captures,
-                                      @JsonProperty("gauges_long") Map<String, Long> gaugesLong) {
+                                      @JsonProperty("gauges_long") Map<String, Long> gaugesLong,
+                                      @JsonProperty("timers") Map<String, TimersReport> timers) {
         return builder()
                 .version(version)
                 .timestamp(timestamp)
                 .processedBytes(processedBytes)
                 .systemMetrics(systemMetrics)
-                .bus(bus)
+                .buses(buses)
                 .captures(captures)
                 .gaugesLong(gaugesLong)
+                .timers(timers)
                 .build();
     }
 
@@ -67,13 +70,15 @@ public abstract class StatusReport {
 
         public abstract Builder processedBytes(TotalWithAverage processedBytes);
 
-        public abstract Builder bus(BusReport bus);
+        public abstract Builder buses(List<BusReport> buses);
 
         public abstract Builder systemMetrics(SystemMetrics systemMetrics);
 
         public abstract Builder captures(List<CapturesReport> captures);
 
-        public abstract Builder gaugesLong( Map<String, Long> gaugesLong);
+        public abstract Builder gaugesLong(Map<String, Long> gaugesLong);
+
+        public abstract Builder timers(Map<String, TimersReport> timers);
 
         public abstract StatusReport build();
     }

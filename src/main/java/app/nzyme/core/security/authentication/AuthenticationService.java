@@ -1158,14 +1158,16 @@ public class AuthenticationService {
     }
 
 
-    public void createFloorOfTenantLocation(UUID locationId, long number, @Nullable String name) {
+    public void createFloorOfTenantLocation(UUID locationId, long number, @Nullable String name, float pathLossExponent) {
         nzyme.getDatabase().useHandle(handle ->
                 handle.createUpdate("INSERT INTO auth_tenants_locations_floors(uuid, location_id, number, name, " +
-                                "created_at, updated_at) VALUES(:uuid, :location_id, :number, :name, NOW(), NOW())")
+                                "path_loss_exponent, created_at, updated_at) VALUES(:uuid, :location_id, :number, " +
+                                ":name, :path_loss_exponent, NOW(), NOW())")
                         .bind("uuid", UUID.randomUUID())
                         .bind("location_id", locationId)
                         .bind("number", number)
                         .bind("name", name)
+                        .bind("path_loss_exponent", pathLossExponent)
                         .execute()
         );
     }
@@ -1191,12 +1193,13 @@ public class AuthenticationService {
         ) > 0;
     }
 
-    public void updateFloorOfTenantLocation(long floorId, long number, @Nullable String name) {
+    public void updateFloorOfTenantLocation(long floorId, long number, @Nullable String name, float pathLossExponent) {
         nzyme.getDatabase().useHandle(handle ->
                 handle.createUpdate("UPDATE auth_tenants_locations_floors SET number = :number, name = :name, " +
-                                "updated_at = NOW() WHERE id = :id")
+                                "path_loss_exponent = :path_loss_exponent, updated_at = NOW() WHERE id = :id")
                         .bind("number", number)
                         .bind("name", name)
+                        .bind("path_loss_exponent", pathLossExponent)
                         .bind("id", floorId)
                         .execute()
         );
@@ -1210,14 +1213,17 @@ public class AuthenticationService {
         );
     }
 
-    public void writeFloorPlan(long floorId, byte[] plan, int width, int height) {
+    public void writeFloorPlan(long floorId, byte[] plan, int widthPixels, int lengthPixels, int widthMeters, int lengthMeters) {
         nzyme.getDatabase().useHandle(handle ->
                 handle.createUpdate("UPDATE auth_tenants_locations_floors SET plan = :plan, " +
-                                "plan_width = :width, plan_height = :height, updated_at = NOW() " +
-                                "WHERE id = :id")
+                                "plan_width_pixels = :width_pixels, plan_length_pixels = :length_pixels, " +
+                                "plan_width_meters = :width_meters, plan_length_meters = :length_meters, " +
+                                "updated_at = NOW() WHERE id = :id")
                         .bind("plan", plan)
-                        .bind("width", width)
-                        .bind("height", height)
+                        .bind("width_pixels", widthPixels)
+                        .bind("length_pixels", lengthPixels)
+                        .bind("width_meters", widthMeters)
+                        .bind("length_meters", lengthMeters)
                         .bind("id", floorId)
                         .execute()
         );

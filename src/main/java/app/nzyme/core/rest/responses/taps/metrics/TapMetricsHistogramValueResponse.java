@@ -22,7 +22,7 @@ import com.google.auto.value.AutoValue;
 import org.joda.time.DateTime;
 
 @AutoValue
-public abstract class TapMetricsGaugeHistogramValueResponse {
+public abstract class TapMetricsHistogramValueResponse {
 
     @JsonProperty("timestamp")
     public abstract DateTime timestamp();
@@ -36,7 +36,7 @@ public abstract class TapMetricsGaugeHistogramValueResponse {
     @JsonProperty("minimum")
     public abstract Double minimum();
 
-    public static TapMetricsGaugeHistogramValueResponse create(DateTime timestamp, Double average, Double maximum, Double minimum) {
+    public static TapMetricsHistogramValueResponse create(DateTime timestamp, Double average, Double maximum, Double minimum) {
         return builder()
                 .timestamp(timestamp)
                 .average(average)
@@ -46,7 +46,7 @@ public abstract class TapMetricsGaugeHistogramValueResponse {
     }
 
     public static Builder builder() {
-        return new AutoValue_TapMetricsGaugeHistogramValueResponse.Builder();
+        return new AutoValue_TapMetricsHistogramValueResponse.Builder();
     }
 
     @AutoValue.Builder
@@ -59,7 +59,6 @@ public abstract class TapMetricsGaugeHistogramValueResponse {
 
         public abstract Builder minimum(Double minimum);
 
-        public abstract TapMetricsGaugeHistogramValueResponse build();
+        public abstract TapMetricsHistogramValueResponse build();
     }
-
 }

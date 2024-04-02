@@ -34,14 +34,14 @@ const transientTapIcon = L.icon({
 const onlineTapIcon = L.icon({
   iconUrl: '/static/leaflet/icon-tap.png',
   iconSize: [24, 24],
-  iconAnchor: [16, 16],
+  iconAnchor: [12, 12],
   tooltipAnchor: [0, 0]
 });
 
 const offlineTapIcon = L.icon({
   iconUrl: '/static/leaflet/icon-tap-offline.png',
   iconSize: [24, 24],
-  iconAnchor: [16, 16],
+  iconAnchor: [12, 12],
   tooltipAnchor: [0, 0]
 });
 
@@ -69,11 +69,15 @@ function FloorPlan(props) {
   const onRevisionSaved = props.onRevisionSaved;
   const onPlanDeleted = props.onPlanDeleted;
 
+  // Tap strengths for signals outside of plan boundaries. Optional.
+  const outsideOfPlanTapStrengths = props.outsideOfPlanTapStrengths;
+
   const [map, setMap] = useState(null);
   const [localRevision, setLocalRevision] = useState(0);
   const [newPositions, setNewPositions] = useState({});
 
   const [showTaps, setShowTaps] = useState(false);
+  const [showTapStrengthIndicators, setShowTapStrengthIndicators] = useState(false);
 
   const [heatmapIntensitySlider, setHeatmapIntensitySlider] = useState(null);
   const [heatmapIntensity, setHeatmapIntensity] = useState(0.7);
@@ -93,7 +97,7 @@ function FloorPlan(props) {
 
   useEffect(() => {
     if (plan) {
-      const bounds = [[0, 0], [plan.height, plan.width]];
+      const bounds = [[0, 0], [plan.length_pixels, plan.width_pixels]];
 
       if (map) {
         // Reset map on reload.
@@ -103,7 +107,7 @@ function FloorPlan(props) {
 
       setMap(L.map("floorplan", {
         crs: L.CRS.Simple,
-        minZoom: -5,
+        minZoom: -3,
         maxBounds: bounds,
         maxBoundsViscosity: 1.0,
         scrollWheelZoom: false,
@@ -118,10 +122,11 @@ function FloorPlan(props) {
   useEffect(() => {
     // Map was (re-) initialized.
     if (map) {
-      const bounds = [[0, 0], [plan.height, plan.width]];
+      const bounds = [[0, 0], [plan.length_pixels, plan.width_pixels]];
       L.imageOverlay("data:image/png;base64," + plan.image_base64, bounds).addTo(map);
       map.fitBounds(bounds);
       map.attributionControl.setPrefix("");
+      map.setView([0,0], -1);
 
       if (!editModeEnabled) {
         if (contextText) {
@@ -158,6 +163,26 @@ function FloorPlan(props) {
             onClick: function (btn, map) {
               setShowTaps(false);
               btn.state("show-taps");
+            }
+          }]
+        }).addTo(map);
+
+        L.easyButton({
+          states: [{
+            stateName: "show-tap-signal-indicators",
+            icon: '<i class="fa-regular fa-circle-dot"></i>',
+            title: "Show tap signal strengths of sources outside of plan boundaries",
+            onClick: function (btn, map) {
+              setShowTapStrengthIndicators(true);
+              btn.state("hide-tap-signal-indicators");
+            }
+          }, {
+            stateName: "hide-tap-signal-indicators",
+            icon: '<i class="fa-regular fa-map"></i>',
+            title: "Hide tap signal strengths of sources outside of plan boundaries",
+            onClick: function (btn, map) {
+              setShowTapStrengthIndicators(false);
+              btn.state("show-tap-signal-indicators");
             }
           }]
         }).addTo(map);
@@ -234,7 +259,7 @@ function FloorPlan(props) {
   // New tap placed.
   useEffect(() => {
     if (plan && placedTap) {
-      const newTap = L.marker(xy(Math.round(plan.width/2), Math.round(plan.height/2)), {
+      const newTap = L.marker(xy(Math.round(plan.width_pixels/2), Math.round(plan.length_pixels/2)), {
         icon: transientTapIcon,
         draggable: true,
         autoPan: true
@@ -280,6 +305,84 @@ function FloorPlan(props) {
       }
     }
   }, [positions, map, heatmapIntensity])
+
+
+  // Tap strengths of signals from outside of plan boundaries.
+  useEffect(() => {
+    if (map && outsideOfPlanTapStrengths) {
+      if (showTapStrengthIndicators) {
+        const strengths = Object.keys(outsideOfPlanTapStrengths);
+        const groups = groupTapStrengthsInRelation(strengths);
+
+        strengths.forEach((strength) => {
+          const x = outsideOfPlanTapStrengths[strength].x;
+          const y = outsideOfPlanTapStrengths[strength].y;
+          const groupIndex = findGroupOfSignalStrength(groups, strength);
+          L.rectangle([[x - 150, y - 150], [x + 150, y + 150]], {
+            nzymeType: "tap-strength",
+            color: "#6868ff",
+            weight: 1,
+            fill: true,
+            fillColor: tapStrengthColors(groupIndex),
+            fillOpacity: 0.5
+          }).addTo(map);
+        });
+      } else {
+        // Remove all tap strength indicators
+        map.eachLayer(function (layer) {
+          console.log(layer);
+          if (layer.options.nzymeType === "tap-strength") {
+            layer.remove();
+          }
+        });
+      }
+    }
+  }, [map, outsideOfPlanTapStrengths, showTapStrengthIndicators])
+
+  const groupTapStrengthsInRelation = (strengths) => {
+    const highest = Math.max(...strengths);
+    const lowest = Math.min(...strengths);
+    const range = highest - lowest;
+    const groupRange = Math.max(1, range / 10);
+    const groups = {};
+
+    strengths.forEach(num => {
+      let groupKey = Math.floor((highest - num) / groupRange);
+      groupKey = Math.min(groupKey, 9);
+      if (!groups[groupKey]) groups[groupKey] = [];
+      groups[groupKey].push(num);
+    });
+
+    return groups;
+  }
+
+  const findGroupOfSignalStrength = (groups, signal) => {
+    let match = 0;
+    Object.keys(groups).forEach(group => {
+      if (groups[group].includes(signal)) {
+        match = group;
+      }
+    });
+
+    return match;
+  }
+
+  const tapStrengthColors = (group) => {
+    const colors = [
+      "#eaeaff",
+      "#d0d0ff",
+      "#b6b6ff",
+      "#9c9cff",
+      "#8282ff",
+      "#6868ff",
+      "#4e4eff",
+      "#3434ff",
+      "#1a1aff",
+      "#0000ff"
+    ];
+
+    return colors[9 - group];
+  }
 
   const tapTooltip = (tap) => {
     return "<span class='floorplan-tooltip-title'>Tap</span><strong>&quot;" + sanitizeHtml(tap.name) + "&quot;</strong> " +

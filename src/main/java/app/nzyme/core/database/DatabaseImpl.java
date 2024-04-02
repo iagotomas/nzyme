@@ -28,13 +28,14 @@ import app.nzyme.core.security.authentication.db.TenantEntryMapper;
 import app.nzyme.core.security.authentication.db.UserEntryMapper;
 import app.nzyme.core.security.sessions.db.SessionEntryMapper;
 import app.nzyme.core.security.sessions.db.SessionEntryWithUserDetailsMapper;
+import app.nzyme.core.taps.db.metrics.TapMetricsTimerMapper;
 import app.nzyme.plugin.Database;
 import app.nzyme.core.crypto.database.PGPKeyFingerprintMapper;
 import app.nzyme.core.ethernet.dns.db.DNSPairSummaryMapper;
 import app.nzyme.core.ethernet.dns.db.DNSStatisticsBucketMapper;
 import app.nzyme.core.ethernet.dns.db.DNSTrafficSummaryMapper;
 import app.nzyme.core.taps.db.*;
-import app.nzyme.core.taps.db.metrics.TapMetricsGaugeAggregationMapper;
+import app.nzyme.core.taps.db.metrics.TapMetricsAggregationMapper;
 import app.nzyme.core.taps.db.metrics.TapMetricsGaugeMapper;
 import liquibase.Contexts;
 import liquibase.LabelExpression;
@@ -79,7 +80,7 @@ public class DatabaseImpl implements Database {
                 .registerRowMapper(new ChannelMapper())
                 .registerRowMapper(new CaptureMapper())
                 .registerRowMapper(new TapMetricsGaugeMapper())
-                .registerRowMapper(new TapMetricsGaugeAggregationMapper())
+                .registerRowMapper(new TapMetricsAggregationMapper())
                 .registerRowMapper(new DNSStatisticsBucketMapper())
                 .registerRowMapper(new DNSTrafficSummaryMapper())
                 .registerRowMapper(new DNSPairSummaryMapper())
@@ -135,7 +136,8 @@ public class DatabaseImpl implements Database {
                 .registerRowMapper(new ClientSignalStrengthResultMapper())
                 .registerRowMapper(new TenantLocationEntryMapper())
                 .registerRowMapper(new TenantLocationFloorEntryMapper())
-                .registerRowMapper(new TapBasedSignalStrengthResultHistogramEntryMapper());
+                .registerRowMapper(new TapBasedSignalStrengthResultHistogramEntryMapper())
+                .registerRowMapper(new TapMetricsTimerMapper());
 
         if (configuration.slowQueryLogThreshold().isPresent()) {
             LOG.info("Slow query log enabled with threshold <{}ms>.", configuration.slowQueryLogThreshold().get());

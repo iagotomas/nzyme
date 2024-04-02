@@ -126,24 +126,34 @@ fn main() {
     );
 
     ethernet::capture::print_devices();
-    
+
     let metrics = Arc::new(Mutex::new(metrics::Metrics::new()));
-    let bus = Arc::new(Bus::new(metrics.clone(), "ethernet_packets".to_string(), configuration.clone()));
-    let tables = Arc::new(Tables::new(metrics.clone()));
+    let ethernet_bus = Arc::new(Bus::new(metrics.clone(), "ethernet_packets".to_string(), configuration.clone()));
+    let dot11_bus = Arc::new(Bus::new(metrics.clone(), "dot11_frames".to_string(), configuration.clone()));
+
+    let mut leaderlink = match Leaderlink::new(configuration.clone(), metrics.clone(), ethernet_bus.clone(), dot11_bus.clone()) {
+        Ok(leaderlink) => Arc::new(Mutex::new(leaderlink)),
+        Err(e) => {
+            error!("Fatal error: Could not set up conection to nzyme leader. {}", e);
+            exit(exit_code::EX_CONFIG);
+        }
+    };
+
+    let tables = Arc::new(Tables::new(metrics.clone(), leaderlink.clone(), &configuration));
 
     let tables_bg = tables.clone();
     thread::spawn(move || {
-        tables_bg.run_background_jobs();
+        tables_bg.run_jobs();
     });
 
     // Ethernet handler.
-    let ethernet_handlerbus = bus.clone();
+    let ethernet_handlerbus = ethernet_bus.clone();
     thread::spawn(move || {
         brokers::ethernet_broker::EthernetBroker::new(ethernet_handlerbus, configuration.performance.ethernet_brokers as usize).run();
     });
 
     // WiFi handler.
-    let wifi_handlerbus = bus.clone();
+    let wifi_handlerbus = dot11_bus.clone();
     thread::spawn(move || {
         brokers::dot11_broker::Dot11Broker::new(wifi_handlerbus, configuration.performance.wifi_brokers as usize).run();
     });
@@ -157,7 +167,7 @@ fn main() {
                 continue;
             }
             let capture_metrics = metrics.clone();
-            let capture_bus = bus.clone();
+            let capture_bus = ethernet_bus.clone();
             thread::spawn(move || {
                 let mut ethernet_capture = ethernet::capture::Capture {
                     metrics: capture_metrics.clone(),
@@ -193,7 +203,7 @@ fn main() {
             }
 
             let capture_metrics = metrics.clone();
-            let capture_bus = bus.clone();
+            let capture_bus = dot11_bus.clone();
             thread::spawn(move || {
                 let mut dot11_capture = dot11::capture::Capture {
                     metrics: capture_metrics.clone(),
@@ -230,7 +240,7 @@ fn main() {
     }
 
     // Processors. TODO follow impl method like metrics aggr/mon
-    processors::distributor::spawn(bus.clone(), &tables, system_state, metrics.clone());
+    processors::distributor::spawn(ethernet_bus.clone(), dot11_bus.clone(), &tables, system_state, metrics.clone());
 
     // Metrics aggregator.
     let aggregatormetrics = metrics.clone();
@@ -244,16 +254,16 @@ fn main() {
         metrics::MetricsMonitor::new(monitormetrics).run();
     });
 
+    let leaderlink_runner = leaderlink.clone();
     thread::spawn(move || { // TODO capsule into struct
-        let mut leaderlink = match Leaderlink::new(configuration, metrics, bus, tables) {
-            Ok(leaderlink) => leaderlink,
-            Err(e) => {
-                error!("Fatal error: Could not set up conection to nzyme leader. {}", e);
-                exit(exit_code::EX_CONFIG);
-            }
-        };
+        loop {
+            sleep(Duration::from_secs(10));
 
-        leaderlink.run();
+            match leaderlink_runner.lock() {
+                Ok(mut link) => link.run(),
+                Err(e) => error!("Could not acquire Leaderlink mutex to run background jobs.")
+            }
+        }
     });
 
     info!("Bootstrap complete.");

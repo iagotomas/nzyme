@@ -15,7 +15,7 @@
  * <http://www.mongodb.com/licensing/server-side-public-license>.
  */
 
-package app.nzyme.core.taps.metrics;
+package app.nzyme.core.taps.db.metrics;
 
 import com.google.auto.value.AutoValue;
 import org.joda.time.DateTime;

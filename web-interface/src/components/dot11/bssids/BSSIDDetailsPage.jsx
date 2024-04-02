@@ -96,7 +96,7 @@ function BSSIDDetailsPage() {
     setTrilaterationFloor({location: locationUuid, floor: floorUuid});
   }
 
-  const onRefresh = () => {
+  const onTrilaterationRefresh = () => {
     setTrilaterationRevision((prevRev => prevRev + 1));
   }
 
@@ -235,13 +235,14 @@ function BSSIDDetailsPage() {
                 <div className="card">
                   <div className="card-body">
                     <CardTitleWithControls title="Physical Location / Trilateration"
+                                           helpLink="https://go.nzyme.org/wifi-trilateration"
                                            timeRange={trilaterationTimeRange}
                                            setTimeRange={setTrilaterationTimeRange} />
 
                     <ReadOnlyTrilaterationResultFloorPlanWrapper data={trilaterationResult}
                                                                  onFloorSelected={onFloorSelected}
                                                                  taps={selectedTaps}
-                                                                 onRefresh={onRefresh}
+                                                                 onRefresh={onTrilaterationRefresh}
                                                                  error={trilaterationError} />
                   </div>
                 </div>

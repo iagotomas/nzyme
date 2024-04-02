@@ -3,21 +3,25 @@ use std::{sync::{Arc}};
 use std::collections::{BTreeMap, HashMap};
 use std::net::IpAddr;
 use std::sync::{Mutex, MutexGuard};
-use chrono::{DateTime, Duration, NaiveDateTime, Utc};
-use log::{error, info, trace, warn};
-use polars::df;
-use polars::prelude::*;
+use chrono::{DateTime, Duration, Utc};
+use log::{error, trace, warn};
 use strum_macros::Display;
 use crate::data::tcp_table::TcpSessionState::{ClosedFin, ClosedRst, ClosedTimeout, Established, FinWait1, FinWait2, Refused, SynReceived, SynSent};
-use crate::ethernet::detection::l4_session_tagger::tag_tcp_sessions;
+use crate::ethernet::detection::l4_session_tagger::{L4SessionTag, tag_tcp_sessions};
 use crate::ethernet::packets::{TcpSegment};
 use crate::ethernet::tcp_session_key::TcpSessionKey;
 use crate::ethernet::traffic_direction::TrafficDirection;
-
-static SESSION_TIMEOUT: usize = 60;
+use crate::helpers::timer::{record_timer, Timer};
+use crate::link::leaderlink::Leaderlink;
+use crate::link::reports::tcp_sessions_report;
+use crate::metrics::Metrics;
 
 pub struct TcpTable {
-    pub sessions: Mutex<HashMap<TcpSessionKey, TcpSession>>,
+    leaderlink: Arc<Mutex<Leaderlink>>,
+    metrics: Arc<Mutex<Metrics>>,
+    sessions: Mutex<HashMap<TcpSessionKey, TcpSession>>,
+    reassembly_buffer_size: i32,
+    session_timeout_seconds: i32
 }
 
 #[derive(Debug)]
@@ -33,7 +37,8 @@ pub struct TcpSession {
     pub segment_count: u64,
     pub bytes_count: u64,
     pub segments_client_to_server: BTreeMap<u32, Vec<u8>>,
-    pub segments_server_to_client: BTreeMap<u32, Vec<u8>>
+    pub segments_server_to_client: BTreeMap<u32, Vec<u8>>,
+    pub tags: Option<Vec<L4SessionTag>>
 }
 
 #[derive(PartialEq, Debug, Display, Clone)]
@@ -51,9 +56,16 @@ pub enum TcpSessionState {
 
 impl TcpTable {
 
-    pub fn new() -> Self {
+    pub fn new(leaderlink: Arc<Mutex<Leaderlink>>,
+               metrics: Arc<Mutex<Metrics>>,
+               reassembly_buffer_size: i32,
+               session_timeout_seconds: i32) -> Self {
         Self {
-            sessions: Mutex::new(HashMap::new())
+            leaderlink,
+            metrics,
+            sessions: Mutex::new(HashMap::new()),
+            reassembly_buffer_size,
+            session_timeout_seconds
         }
     }
 
@@ -62,19 +74,8 @@ impl TcpTable {
             Ok(mut sessions) => {
                 match sessions.get_mut(&segment.session_key) {
                     Some(session) => {
+                        let mut timer = Timer::new();
                         let session_state = Self::determine_session_state(segment, Some(session));
-
-                        // TOOD direction.
-                        if !segment.payload.is_empty() {
-                            match segment.determine_direction() {
-                                TrafficDirection::ClientToServer => {
-                                    insert_session_segment(segment, &mut session.segments_client_to_server);
-                                }
-                                TrafficDirection::ServerToClient => {
-                                    insert_session_segment(segment, &mut session.segments_server_to_client);
-                                }
-                            }
-                        }
 
                         session.most_recent_segment_time = segment.timestamp;
                         session.state = session_state.clone();
@@ -85,11 +86,36 @@ impl TcpTable {
                             session.end_time = Some(segment.timestamp);
                         }
 
+                        if !segment.payload.is_empty() {
+                            if session.bytes_count <= self.reassembly_buffer_size as u64 {
+                                match segment.determine_direction() {
+                                    TrafficDirection::ClientToServer => {
+                                        insert_session_segment(segment, &mut session.segments_client_to_server);
+                                    }
+                                    TrafficDirection::ServerToClient => {
+                                        insert_session_segment(segment, &mut session.segments_server_to_client);
+                                    }
+                                }
+                            } else {
+                                trace!("TCP session [{:?}] has reached maximum segment buffer size.",
+                                    session);
+                            }
+                        }
+
                         trace!("Segment of existing TCP Session: {:?}, State: {:?}, Flags: {:?}",
                             segment.session_key, session_state, segment.flags);
+
+                        timer.stop();
+                        record_timer(
+                            timer.elapsed_microseconds(),
+                            "tables.tcp.sessions.timer.register_existing",
+                            &self.metrics
+                        );
                     },
                     None => {
                         // First time seeing this session.
+                        let mut timer = Timer::new();
+
                         let session_state = Self::determine_session_state(segment, None);
 
                         // We only record new sessions, not mid-session.
@@ -106,13 +132,21 @@ impl TcpTable {
                                 segment_count: 1,
                                 bytes_count: segment.size as u64,
                                 segments_client_to_server: BTreeMap::new(),
-                                segments_server_to_client: BTreeMap::new()
+                                segments_server_to_client: BTreeMap::new(),
+                                tags: None
                             };
 
                             trace!("New TCP Session: {:?}, State: {:?}, Flags: {:?}",
                             segment.session_key, session_state, segment.flags);
 
                             sessions.insert(segment.session_key.clone(), new_session);
+
+                            timer.stop();
+                            record_timer(
+                                timer.elapsed_microseconds(),
+                                "tables.tcp.sessions.timer.register_new",
+                                &self.metrics
+                            );
                         }
                     }
                 }
@@ -123,60 +157,54 @@ impl TcpTable {
         }
     }
 
-    pub fn process_report(&self) { // -> Report
+    pub fn process_report(&self) {
         match self.sessions.lock() {
             Ok(mut sessions) => {
                 // Mark all timed out sessions in table as ClosedTimeout.
-                timeout_sweep(&mut sessions);
+                let mut timer = Timer::new();
+                timeout_sweep(&mut sessions, self.session_timeout_seconds as i64);
+                timer.stop();
+                record_timer(
+                    timer.elapsed_microseconds(),
+                    "tables.tcp.timer.sessions.timeout_sweep",
+                    &self.metrics
+                );
 
+                // Scan session payloads and tag.
+                let mut timer = Timer::new();
                 tag_tcp_sessions(&mut sessions);
+                timer.stop();
+                record_timer(
+                    timer.elapsed_microseconds(),
+                    "tables.tcp.timer.sessions.tagging",
+                    &self.metrics
+                );
 
-                // Write current table data to dataframe.
-                let mut session_keys: Vec<u64> = Vec::new();
-                let mut states: Vec<String> = Vec::new();
-                let mut start_times: Vec<NaiveDateTime> = Vec::new();
-                let mut end_times: Vec<Option<NaiveDateTime>> = Vec::new();
-                let mut most_recent_segment_times: Vec<NaiveDateTime> = Vec::new();
-                let mut source_addresses: Vec<String> = Vec::new();
-                let mut source_ports: Vec<u16> = Vec::new();
-                let mut destination_addresses: Vec<String> = Vec::new();
-                let mut destination_ports: Vec<u16> = Vec::new();
-                let mut segment_counts: Vec<u64> = Vec::new();
-                let mut byte_counts: Vec<u64> = Vec::new();
+                // Generate JSON.
+                let mut timer = Timer::new();
+                let report = match serde_json::to_string(&tcp_sessions_report::generate(&sessions)) {
+                    Ok(report) => report,
+                    Err(e) => {
+                        error!("Could not serialize TCP sessions report: {}", e);
+                        return;
+                    }
+                };
+                timer.stop();
+                record_timer(
+                    timer.elapsed_microseconds(),
+                    "tables.tcp.timer.report_generation",
+                    &self.metrics
+                );
 
-                for (session_key, session) in &*sessions {
-                    session_keys.push(session_key.calculate_hash());
-                    states.push(session.state.to_string());
-                    start_times.push(session.start_time.naive_utc());
-                    end_times.push(session.end_time.map(|set| set.naive_utc()));
-                    most_recent_segment_times.push(session.most_recent_segment_time.naive_utc());
-                    source_addresses.push(session.source_address.to_string());
-                    source_ports.push(session.source_port);
-                    destination_addresses.push(session.destination_address.to_string());
-                    destination_ports.push(session.destination_port);
-                    segment_counts.push(session.segment_count);
-                    byte_counts.push(session.bytes_count);
+                // Send report.
+                match self.leaderlink.lock() {
+                    Ok(link) => {
+                        if let Err(e) = link.send_report("tcp/sessions", report) {
+                            error!("Could not submit TCP report: {}", e);
+                        }
+                    },
+                    Err(e) => error!("Could not acquire TCP table lock for report submission: {}", e)
                 }
-
-                let df = df!(
-                    "session" => &session_keys,
-                    "state" => &states,
-                    "start_time" => &start_times,
-                    "end_time" => &end_times,
-                    "most_recent_segment_time" => &most_recent_segment_times,
-                    "source_address" => &source_addresses,
-                    "source_port" => &source_ports,
-                    "destination_address" => &destination_addresses,
-                    "destination_port" => &destination_ports,
-                    "segment_count" => &segment_counts,
-                    "byte_count" => &byte_counts
-                ).unwrap().lazy();
-
-                // Query Data and build report.
-                info!("DATA: {}", df.count().collect().unwrap());
-
-                // Send data. Only proceed with cleanup if successful.
-                // ASSUME SUCCESS
 
                 // Delete all timed out and closedfin/closedrst sessions in table.
                 retention_sweep(&mut sessions);
@@ -184,6 +212,29 @@ impl TcpTable {
             Err(e) => {
                 error!("Could not acquire TCP sessions table mutex for report generation: {}", e);
             }
+        }
+    }
+
+    pub fn calculate_metrics(&self) {
+        let (sessions_size, sessions_bytes): (i128, i128) = match self.sessions.lock() {
+            Ok(sessions) => {
+                let mut bytes: i128 = 0;
+                sessions.values().for_each(|s| bytes += s.bytes_count as i128);
+                (sessions.len() as i128, bytes)
+            },
+            Err(e) => {
+                error!("Could not acquire mutex to calculate TCP session table sizes: {}", e);
+
+                (-1, -1)
+            }
+        };
+
+        match self.metrics.lock() {
+            Ok(mut metrics) => {
+                metrics.set_gauge("tables.tcp.sessions.size", sessions_size);
+                metrics.set_gauge("tables.tcp.sessions.bytes", sessions_bytes);
+            },
+            Err(e) => error!("Could not acquire metrics mutex: {}", e)
         }
     }
 
@@ -269,10 +320,10 @@ fn insert_session_segment(segment: &TcpSegment, segments: &mut BTreeMap<u32, Vec
     }
 }
 
-fn timeout_sweep(sessions: &mut MutexGuard<HashMap<TcpSessionKey, TcpSession>>) {
+fn timeout_sweep(sessions: &mut MutexGuard<HashMap<TcpSessionKey, TcpSession>>, timeout: i64) {
     for session in sessions.values_mut() {
         if Utc::now() - session.most_recent_segment_time
-            > Duration::try_seconds(SESSION_TIMEOUT as i64).unwrap() {
+            > Duration::try_seconds(timeout).unwrap() {
             session.state = ClosedTimeout;
         }
     }
