@@ -123,6 +123,7 @@ import LocationDetailsPage from "./components/system/authentication/management/t
 import EditLocationPage from "./components/system/authentication/management/tenants/locations/EditLocationPage";
 import CreateFloorPage from "./components/system/authentication/management/tenants/locations/floors/CreateFloorPage";
 import EditFloorPage from "./components/system/authentication/management/tenants/locations/floors/EditFloorPage";
+import LookAndFeelPage from "./components/system/lookandfeel/LookAndFeelPage";
 
 const pingService = new PingService();
 const pluginsService = new PluginsService();
@@ -149,6 +150,7 @@ function App() {
   const [mfaEntryExpiresAt, setMfaEntryExpiresAt] = useState(null);
   const [nzymeInformation, setNzymeInformation] = useState(null);
   const [userInformation, setUserInformation] = useState(null);
+  const [branding, setBranding] = useState(null);
   const [plugins, setPlugins] = useState([]); // TODO
   const [selectedTaps, setSelectedTaps] = useState(Store.get("selected_taps"));
   const [tapSelectorEnabled, setTapSelectorEnabled] = useState(false);
@@ -174,6 +176,7 @@ function App() {
         setMfaSetup(sessionInfo.mfa_setup);
         setMfaEntryExpiresAt(sessionInfo.mfa_entry_expires_at);
         setUserInformation(sessionInfo.user);
+        setBranding(sessionInfo.branding);
 
         callback();
       }, function() {
@@ -237,7 +240,7 @@ function App() {
           <DarkMode enabled={false} />
 
           <Notifications/>
-          <LoginPage />
+          <LoginPage customImage={nzymeInformation.login_image} />
         </div>
     )
   } else {
@@ -249,7 +252,7 @@ function App() {
             <div className="nzyme">
               <Notifications/>
 
-              <MFAEntryPage mfaEntryExpiresAt={mfaEntryExpiresAt} />
+              <MFAEntryPage mfaEntryExpiresAt={mfaEntryExpiresAt} customImage={nzymeInformation.login_image} />
             </div>
         )
       } else {
@@ -258,7 +261,7 @@ function App() {
           <div className="nzyme">
             <Notifications/>
 
-            <MFASetupPage />
+            <MFASetupPage customImage={nzymeInformation.login_image} />
           </div>
         )
       }
@@ -271,7 +274,7 @@ function App() {
             <div className="nzyme d-flex">
               <UserContext.Provider value={userInformation}>
                 <TapContext.Provider value={{set: setSelectedTaps, taps: selectedTaps, selectorEnabled: tapSelectorEnabled, setSelectorEnabled: setTapSelectorEnabled}}>
-                  <Sidebar />
+                  <Sidebar branding={branding} />
 
                   <div id="main" className="flex-fill">
                     <Notifications/>
@@ -288,9 +291,6 @@ function App() {
 
                           { /* Search. */}
                           <Route path={ApiRoutes.SEARCH.RESULTS} element={<SearchResultPage />}/>
-
-                          { /* System/Misc. */}
-                          <Route path={ApiRoutes.SYSTEM.VERSION} element={<VersionPage />}/>
 
                           { /* System/Authentication */ }
                           <Route path={ApiRoutes.SYSTEM.AUTHENTICATION.MANAGEMENT.INDEX} element={<AuthenticationPage />}/>
@@ -361,6 +361,10 @@ function App() {
 
                           { /* System/Database */ }
                           <Route path={ApiRoutes.SYSTEM.DATABASE.INDEX} element={<DatabasePage />} />
+
+                          { /* System/Misc. */}
+                          <Route path={ApiRoutes.SYSTEM.VERSION} element={<VersionPage />}/>
+                          <Route path={ApiRoutes.SYSTEM.LOOKANDFEEL} element={<LookAndFeelPage />}/>
 
                           { /* Ethernet/DNS. */}
                           <Route path={ApiRoutes.ETHERNET.DNS.INDEX} element={<DNSOverviewPage />}/>
